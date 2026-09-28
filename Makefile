@@ -5,7 +5,7 @@ dist: venv/manifest.txt
 
 .PHONY: mount
 mount:
-	@echo "make mount is not needed in LibreLane 2+. You may simply call 'librelane --dockerized'."
+	@echo "make mount is not needed in LibreLane. You may simply call 'librelane --dockerized'."
 
 .PHONY: pdk pull-openlane pull-librelane
 pdk pull-openlane pull-librelane:
@@ -33,14 +33,13 @@ host-docs:
 	
 .PHONY: watch-docs
 watch-docs:
-	pymon\
-		-d\
-		-w '*.md'\
-		-w '*.css'\
-		-i "*docs/build/*"\
-		-i "*docs/source/reference/*_vars.md"\
-		-i "*docs/source/reference/flows.md"\
-		-x "$(MAKE) docs && python3 -m http.server --directory docs/build/html"
+	watchexec \
+		-r \
+		-e md,css,py \
+		--ignore "*docs/build/*" \
+		--ignore "*docs/source/reference/*_vars.md" \
+		--ignore "*docs/source/reference/flows.md" \
+		-- $(MAKE) docs '&&' python3 -m http.server --directory docs/build/html
 
 .PHONY: lint
 lint:
@@ -57,7 +56,7 @@ coverage-infrastructure:
 coverage-steps:
 	python3 -m pytest -n auto\
 		--cov=librelane.steps --cov-config=.coveragerc-steps --cov-report html:htmlcov_steps --cov-report term\
-		--step-rx "." -k test_all_steps
+		-k test_all_steps
 
 .PHONY: check-license
 check-license: venv/manifest.txt
@@ -73,7 +72,7 @@ venv/manifest.txt: ./pyproject.toml
 	python3 -m venv ./venv
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade pip
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade wheel poetry poetry-plugin-export
-	PYTHONPATH= ./venv/bin/poetry export --with dev --without-hashes --format=requirements.txt --output=requirements_tmp.txt
+	PYTHONPATH= ./venv/bin/poetry export --all-groups --without-hashes --format=requirements.txt --output=requirements_tmp.txt
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r requirements_tmp.txt
 	PYTHONPATH= ./venv/bin/python3 -m pip freeze > $@
 	@echo ">> Venv prepared."

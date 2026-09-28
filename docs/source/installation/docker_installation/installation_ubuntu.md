@@ -1,14 +1,20 @@
-# Ubuntu 20.04+
+# Ubuntu 22.04+
 
 * **Minimum Requirements**
     * Quad-core CPU running at 2.0 GHz+
     * 8 GiB of RAM
     
 * **Recommended Requirements**
-    * 6th Gen Intel® Core CPU or later OR AMD Ryzen™️ 1000-series or later
+    * 6th Gen Intel® Core CPU or later OR AMD Ryzen™ 1000-series or later
     * 16 GiB of RAM
 
-Only Ubuntu 20.04 and above are supported.
+Only Ubuntu 22.04 and above are supported.
+
+```{note}
+We also test an alternative container engine, Podman, in our CI for Ubuntu
+24.04/26.04. We explicitly do not support 22.04 because of a number of bugs
+we've encountered in the very out-of-date version of Podman.
+```
 
 ```{include} ../_ubuntu_packages.md
 :heading-offset: 1

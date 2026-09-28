@@ -1,14 +1,18 @@
-# macOS 11+
+# macOS 15+
+
+```{note}
+Earlier versions of macOS may work, but they are not officially supported.
+```
 
 * **Minimum Requirements**
-    * macOS 11 (Big Sur)
+    * macOS 15 (Sequoia)
     * 6th Gen Intel® Core CPU or later
     * 16 GiB of RAM
-    
+
 * **Recommended**
-    * macOS 11 (Big Sur)
+    * macOS 15 (Sequoia)
     * Apple Silicon CPU
-    * 32 GiB of RAM
+    * 16 GiB of RAM
 
 ## Installing Dependencies
 

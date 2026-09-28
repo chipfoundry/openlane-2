@@ -27,6 +27,7 @@ entirely backwards compatible, with some conveniences:
   design at certain parts of flows, without worrying about surprises related
   to state variables missing.
 
+(fig-configurable-flow)=
 ```{figure} ./configurable_flow.webp
 Writing custom flows and steps using LibreLane
 ```
@@ -181,8 +182,7 @@ configuration file automatically.
 
 ## Outputs
 
-Examining outputs for LibreLane.0+ is very different compared to previous
-versions.
+Examining outputs for LibreLane is very different compared to OpenLane.
 
 ### Run Folders
 

@@ -17,6 +17,8 @@
 # corresponding maglefs
 
 drc off
+crashbackups disable
+locking disable
 
 gds readonly true
 gds rescale false
@@ -25,8 +27,8 @@ if { $::env(MAGIC_GDS_POLYGON_SUBCELLS) } {
 	gds polygon subcells true
 }
 
-if {  [info exist ::env(EXTRA_GDS_FILES)] } {
-	set gds_files_in $::env(EXTRA_GDS_FILES)
+if { [info exist ::env(EXTRA_GDS)] } {
+	set gds_files_in $::env(EXTRA_GDS)
 	foreach gds_file $gds_files_in {
 		gds read $gds_file
 

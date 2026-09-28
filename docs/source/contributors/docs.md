@@ -6,14 +6,16 @@ Documentation plays an important role in LibreLane.
 Good documentation should cover as much information as possible,
 while staying readable, up-to-date and clean.
 
+```{note}
+All code contributions must follow the {doc}`/contributors/llm-policy`.
+```
+
 This page covers installation of required tools
 and outlines simple principles to be followed when writing documentation.
 
-:::{note}
-To simply fix typos, you do not need to install anything. Pull requests can be created from the relevant ReadTheDocs page, using GitHub's editor.
-:::
-
-For more complex documentation, it is recommended to follow these steps:
+To simply fix typos, you do not need to install anything. Pull requests can be
+created from the relevant ReadTheDocs page, using GitHub's editor. For more
+complex documentation, it is recommended to follow these steps:
 
 1. Read this guide
 1. Either create a new page in `docs/source/`. Then you need to add your page to the Table of Contents in `index.md`
@@ -67,8 +69,6 @@ Documentation [regarding reStructuredText can be found here:](https://www.sphinx
 ## Documentation organization
 
 All of the documentation is concentrated in `docs/`.
-Static files for a certain document are stored in `docs/_static` in its respective directory: for example, screenshots for this guide are located in `docs/_static/docs_contrbution`,
-while the screenshots for the installation guide are located in `docs/_static/installation`.
 
 Directory `docs/source/` contains all of the page's content.
 You can add pages by creating the corresponding file in that folder.

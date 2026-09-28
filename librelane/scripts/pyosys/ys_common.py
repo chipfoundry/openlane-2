@@ -1,3 +1,7 @@
+# Copyright 2025 LibreLane Contributors
+#
+# Adapted from OpenLane
+#
 # Copyright 2020-2024 Efabless Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,24 +16,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import re
 import sys
-from typing import Iterable, List, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 try:
-    import libyosys as ys
+    from pyosys import libyosys as ys
 except ImportError:
     try:
-        from pyosys import libyosys as ys
+        # flake8: noqa F401
+        import libyosys
+
+        print(
+            "Current versions of LibreLane require Yosys 0.59.1 or higher.",
+            file=sys.stderr,
+        )
+        exit(-1)
     except ImportError:
-        ys.log_error(
-            "Could not find pyosys in 'PYTHONPATH'-- make sure Yosys is compiled with ENABLE_PYTHON set to 1.",
+        print(
+            "Failed to import pyosys -- make sure Yosys is compiled with ENABLE_PYTHON set to 1.",
             file=sys.stderr,
         )
         exit(-1)
 
+_yosys_version_extracted: Optional[Tuple[int, int]] = None
+
+
+def yosys_version_at_least(*target: Tuple[int, ...]) -> Tuple[int, int]:
+    """
+    check if version is >= the target components, i.e.
+
+    yosys_version_at_least(0, 68) checks if the verison >= 0.68
+    """
+    global _yosys_version_extracted
+    yosys_version_rx = re.compile(r"^\s*Yosys (\d+)\.(\d+)")
+    if _yosys_version_extracted is None:
+        _yosys_version_extracted = (999, 999)
+        try:
+            match = yosys_version_rx.search(ys.Globals.yosys_version_str)
+            _yosys_version_extracted = (int(match.group(1)), int(match.group(2)))
+        except Exception:
+            ys.log_warning(
+                "Could not identify Yosys version. "
+                "Defaulting to the latest version's behavior on all code.\n"
+            )
+    return _yosys_version_extracted >= target
+
 
 def _Design_run_pass(self, *command):
-    ys.Pass.call__YOSYS_NAMESPACE_RTLIL_Design__std_vector_string_(self, list(command))
+    ys.Pass.call(self, command)
 
 
 ys.Design.run_pass = _Design_run_pass  # type: ignore
@@ -50,48 +85,30 @@ def _Design_read_verilog_files(
     synth_parameters: Iterable[str],
     includes: Iterable[str],
     defines: Iterable[str],
-    use_synlig: bool = False,
-    synlig_defer: bool = False,
+    use_slang: bool = False,
+    slang_arguments: Iterable[str],
 ):
     files = list(files)  # for easier concatenation
     include_args = [f"-I{dir}" for dir in includes]
     define_args = [f"-D{define}" for define in defines]
     chparams = {}
-    synlig_chparam_args = []
+    slang_chparam_args = []
     for chparam in synth_parameters:
         param, value = chparam.split("=", maxsplit=1)  # validate
         chparams[param] = value
-        synlig_chparam_args.append(f"-P{param}={value}")
+        slang_chparam_args.append(f"-G{param}={value}")
 
-    if use_synlig and synlig_defer:
-        self.run_pass("plugin", "-i", "synlig-sv")
-        for file in files:
-            self.run_pass(
-                "read_systemverilog",
-                "-defer",
-                "-sverilog",
-                *define_args,
-                *include_args,
-                file,
-            )
+    if use_slang:
+        if not yosys_version_at_least(0, 67):
+            self.run_pass("plugin", "-i", "slang")
         self.run_pass(
-            "read_systemverilog",
-            "-link",
-            "-sverilog",
-            "-top",
-            top,
-            *synlig_chparam_args,
-        )
-    elif use_synlig:
-        self.run_pass("plugin", "-i", "synlig-sv")
-        self.run_pass(
-            "read_systemverilog",
-            "-sverilog",
-            "-top",
+            "read_slang",
+            "--top",
             top,
             *define_args,
             *include_args,
-            *synlig_chparam_args,
+            *slang_chparam_args,
+            *slang_arguments,
             *files,
         )
     else:
@@ -130,7 +147,14 @@ def _Design_add_blackbox_models(
 
         if ext in [".v", ".sv", ".vh"]:
             self.run_pass(
-                "read_verilog", "-sv", "-lib", *include_args, *define_args, model
+                "read_verilog",
+                "-sv",
+                "-setattr",
+                "keep_hierarchy",
+                "-lib",
+                *include_args,
+                *define_args,
+                model,
             )
         elif ext in [".lib"]:
             self.run_pass(
@@ -139,6 +163,8 @@ def _Design_add_blackbox_models(
                 "-ignore_miss_dir",
                 "-setattr",
                 "blackbox",
+                "-setattr",
+                "keep_hierarchy",
                 model,
             )
         else:

@@ -1,3 +1,7 @@
+# Copyright 2025 LibreLane Contributors
+#
+# Adapted from OpenLane
+#
 # Copyright 2023 Efabless Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,6 +78,12 @@ class Lint(Step):
             default=True,
         ),
         Variable(
+            "LINTER_ERROR_ON_MULTIDRIVEN",
+            bool,
+            "When a net has multiple drivers, report this as a linter error.",
+            default=True,
+        ),
+        Variable(
             "VERILOG_DEFINES",
             Optional[List[str]],
             "Preprocessor defines for input Verilog files",
@@ -83,6 +93,23 @@ class Lint(Step):
             "LINTER_DEFINES",
             Optional[List[str]],
             "Linter-specific preprocessor definitions; overrides VERILOG_DEFINES for the lint step if exists",
+        ),
+        Variable(
+            "LINTER_DISABLE_WARNINGS",
+            Optional[List[str]],
+            "Warning codes that are passed to the linter to be disabled.",
+            default=["DECLFILENAME", "EOFNEWLINE"],
+        ),
+        Variable(
+            "LINTER_DISABLE_WARNINGS_BLACKBOX",
+            Optional[List[str]],
+            "Warning codes that are passed to the linter to be disabled for all blackbox modules.",
+            default=["UNDRIVEN", "UNUSEDSIGNAL"],
+        ),
+        Variable(
+            "LINTER_VLT",
+            Optional[Path],
+            "Path to a Verilator Configuration format file (`.vlt`) that is passed to the linter.",
         ),
     ]
 
@@ -101,6 +128,14 @@ class Lint(Step):
             blackboxes.append(
                 self.toolbox.create_blackbox_model(
                     frozenset(cell_verilog_models),
+                    frozenset(["USE_POWER_PINS"]),
+                )
+            )
+
+        if pad_verilog_models := self.config["PAD_VERILOG_MODELS"]:
+            blackboxes.append(
+                self.toolbox.create_blackbox_model(
+                    frozenset(pad_verilog_models),
                     frozenset(["USE_POWER_PINS"]),
                 )
             )
@@ -149,11 +184,16 @@ class Lint(Step):
         vlt_file = os.path.join(self.step_dir, "_deps.vlt")
         with open(vlt_file, "w") as f:
             f.write("`verilator_config\n")
-            f.write("lint_off -rule DECLFILENAME\n")
-            f.write("lint_off -rule EOFNEWLINE\n")
+            if disable_warnings := self.config["LINTER_DISABLE_WARNINGS"]:
+                for warn in disable_warnings:
+                    f.write(f"lint_off -rule {warn}\n")
+
             for blackbox in blackboxes:
-                f.write(f'lint_off -rule UNDRIVEN -file "{blackbox}"\n')
-                f.write(f'lint_off -rule UNUSEDSIGNAL -file "{blackbox}"\n')
+                if disable_warnings_bb := self.config[
+                    "LINTER_DISABLE_WARNINGS_BLACKBOX"
+                ]:
+                    for warn in disable_warnings_bb:
+                        f.write(f'lint_off -rule {warn} -file "{blackbox}"\n')
 
         extra_args.append("--Wno-fatal")
 
@@ -163,26 +203,33 @@ class Lint(Step):
         if self.config["LINTER_ERROR_ON_LATCH"]:
             extra_args.append("--Werror-LATCH")
 
+        # It's more user-friendly to catch multiple-driver conflicts here in Verilator (if possible) than later in Yosys.
+        if self.config["LINTER_ERROR_ON_MULTIDRIVEN"]:
+            extra_args.append("--Werror-MULTIDRIVEN")
+
         if include_dirs := self.config["VERILOG_INCLUDE_DIRS"]:
             extra_args.extend([f"-I{dir}" for dir in include_dirs])
 
         for define in defines:
             extra_args.append(f"+define+{define}")
 
+        if linter_vlt := self.config["LINTER_VLT"]:
+            extra_args.append(linter_vlt)
+
         result = self.run_subprocess(
             [
                 "verilator",
                 "--lint-only",
+                "--waiver-output",
+                os.path.join(self.step_dir, "_waivers_output.vlt"),
                 "--Wall",
-                "--Wno-DECLFILENAME",
-                "--Wno-EOFNEWLINE",
                 "--top-module",
                 self.config["DESIGN_NAME"],
                 vlt_file,
             ]
+            + extra_args
             + blackboxes
-            + self.config["VERILOG_FILES"]
-            + extra_args,
+            + self.config["VERILOG_FILES"],
             env=env,
             check=False,
         )
